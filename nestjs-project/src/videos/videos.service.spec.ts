@@ -1,11 +1,21 @@
+import { getQueueToken } from '@nestjs/bullmq';
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { FindOneOptions, QueryFailedError, Repository } from 'typeorm';
+import {
+  FindOneOptions,
+  FindOptionsWhere,
+  QueryFailedError,
+  Repository,
+  UpdateResult,
+} from 'typeorm';
+import { VIDEO_PROCESSING_QUEUE } from '../queue/video-processing.queue';
 import { ChannelsService } from '../channels/channels.service';
 import { Channel } from '../channels/entities/channel.entity';
 import {
   ChannelNotFoundException,
   InvalidPartNumberException,
+  UploadIncompleteException,
+  UploadSizeMismatchException,
   VideoNotDraftException,
   VideoNotFoundException,
 } from '../common/exceptions/domain.exception';
@@ -31,11 +41,18 @@ function uniqueSlugViolation(): QueryFailedError {
 
 describe('VideosService', () => {
   let service: VideosService;
-  let videoRepository: Mocked<Repository<Video>, 'create' | 'save' | 'findOne'>;
+  let videoRepository: Mocked<
+    Repository<Video>,
+    'create' | 'save' | 'findOne' | 'update'
+  >;
+  let queue: { add: jest.Mock<Promise<unknown>, [string, unknown, unknown]> };
   let channelsService: Mocked<ChannelsService, 'findByUserId'>;
   let storageService: Mocked<
     StorageService,
-    'createMultipartUpload' | 'presignUploadPart' | 'listParts'
+    | 'createMultipartUpload'
+    | 'presignUploadPart'
+    | 'listParts'
+    | 'completeMultipartUpload'
   >;
 
   const channel = { id: 'channel-1' } as Channel;
@@ -50,6 +67,14 @@ describe('VideosService', () => {
       create: jest.fn((fields) => fields as Video),
       save: jest.fn((video) => Promise.resolve(video as Video)),
       findOne: jest.fn<Promise<Video | null>, [FindOneOptions<Video>]>(),
+      update: jest
+        .fn<Promise<UpdateResult>, [FindOptionsWhere<Video>, Partial<Video>]>()
+        .mockResolvedValue({ affected: 1, raw: [], generatedMaps: [] }),
+    };
+    queue = {
+      add: jest
+        .fn<Promise<unknown>, [string, unknown, unknown]>()
+        .mockResolvedValue({}),
     };
     channelsService = {
       findByUserId: jest
@@ -66,6 +91,9 @@ describe('VideosService', () => {
           Promise.resolve(`https://storage/part-${partNumber}`),
         ),
       listParts: jest.fn<Promise<UploadedPart[]>, [string, string]>(),
+      completeMultipartUpload: jest
+        .fn<Promise<void>, [string, string, UploadedPart[]]>()
+        .mockResolvedValue(undefined),
     };
 
     const module = await Test.createTestingModule({
@@ -74,6 +102,7 @@ describe('VideosService', () => {
         { provide: getRepositoryToken(Video), useValue: videoRepository },
         { provide: ChannelsService, useValue: channelsService },
         { provide: StorageService, useValue: storageService },
+        { provide: getQueueToken(VIDEO_PROCESSING_QUEUE), useValue: queue },
       ],
     }).compile();
     service = module.get(VideosService);
@@ -259,6 +288,103 @@ describe('VideosService', () => {
       await expect(
         service.listUploadedParts('user-1', 'video-1'),
       ).rejects.toThrow(VideoNotDraftException);
+    });
+  });
+
+  describe('completeUpload', () => {
+    const allParts: UploadedPart[] = [
+      { partNumber: 1, sizeBytes: 67108864, etag: '"e1"' },
+      { partNumber: 2, sizeBytes: 10, etag: '"e2"' },
+    ];
+
+    beforeEach(() => {
+      videoRepository.findOne.mockResolvedValue(draftVideo());
+      storageService.listParts.mockResolvedValue(allParts);
+    });
+
+    it('should complete the multipart upload, move to processing and enqueue the job', async () => {
+      const result = await service.completeUpload('user-1', 'video-1');
+
+      expect(result).toEqual({ id: 'video-1', status: VideoStatus.PROCESSING });
+      expect(storageService.completeMultipartUpload).toHaveBeenCalledWith(
+        'videos/video-1/original',
+        'upload-1',
+        allParts,
+      );
+      expect(videoRepository.update).toHaveBeenCalledWith(
+        { id: 'video-1', status: VideoStatus.DRAFT },
+        { status: VideoStatus.PROCESSING, upload_id: null },
+      );
+      expect(queue.add).toHaveBeenCalledWith(
+        'process-video',
+        { videoId: 'video-1' },
+        expect.objectContaining({
+          jobId: 'video-1',
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 5000 },
+        }),
+      );
+    });
+
+    it('should throw UPLOAD_INCOMPLETE when a part is missing', async () => {
+      storageService.listParts.mockResolvedValue([allParts[0]]);
+
+      await expect(service.completeUpload('user-1', 'video-1')).rejects.toThrow(
+        UploadIncompleteException,
+      );
+      expect(storageService.completeMultipartUpload).not.toHaveBeenCalled();
+      expect(queue.add).not.toHaveBeenCalled();
+    });
+
+    it('should throw UPLOAD_SIZE_MISMATCH when stored bytes differ from the declared size', async () => {
+      storageService.listParts.mockResolvedValue([
+        allParts[0],
+        { ...allParts[1], sizeBytes: 11 },
+      ]);
+
+      await expect(service.completeUpload('user-1', 'video-1')).rejects.toThrow(
+        UploadSizeMismatchException,
+      );
+      expect(storageService.completeMultipartUpload).not.toHaveBeenCalled();
+    });
+
+    it('should throw VIDEO_NOT_DRAFT for an already completed video', async () => {
+      videoRepository.findOne.mockResolvedValue(
+        draftVideo({ status: VideoStatus.PROCESSING, upload_id: null }),
+      );
+
+      await expect(service.completeUpload('user-1', 'video-1')).rejects.toThrow(
+        VideoNotDraftException,
+      );
+      expect(queue.add).not.toHaveBeenCalled();
+    });
+
+    it('should throw VIDEO_NOT_DRAFT when a concurrent completion already moved the row', async () => {
+      videoRepository.update.mockResolvedValueOnce({
+        affected: 0,
+        raw: [],
+        generatedMaps: [],
+      });
+
+      await expect(service.completeUpload('user-1', 'video-1')).rejects.toThrow(
+        VideoNotDraftException,
+      );
+      expect(queue.add).not.toHaveBeenCalled();
+    });
+
+    it('should mark the video failed and rethrow when enqueueing fails', async () => {
+      queue.add.mockRejectedValue(new Error('redis down'));
+
+      await expect(service.completeUpload('user-1', 'video-1')).rejects.toThrow(
+        'redis down',
+      );
+      expect(videoRepository.update).toHaveBeenLastCalledWith(
+        { id: 'video-1' },
+        {
+          status: VideoStatus.FAILED,
+          failure_reason: 'Failed to enqueue processing job: redis down',
+        },
+      );
     });
   });
 });

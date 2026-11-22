@@ -8,6 +8,10 @@ libs:
     version: "^12.0.2"
     context7_id: "/nestjs/bull"
     fetched_at: "2026-11-22T00:00:00Z"
+  "ioredis":
+    version: "^5.11.1"
+    context7_id: "/taskforcesh/bullmq"
+    fetched_at: "2026-11-22T14:10:00Z"
   "@aws-sdk/client-s3":
     version: "^3.1175.0"
     context7_id: "/aws/aws-sdk-js-v3"
@@ -17,7 +21,7 @@ libs:
     context7_id: "/aws/aws-sdk-js-v3"
     fetched_at: "2026-11-22T00:00:00Z"
 sources_mtime:
-  docs/decisions/technical-decisions-phase-03-videos.md: "2026-11-22T12:19:20Z"
+  docs/decisions/technical-decisions-phase-03-videos.md: "2026-11-22T14:09:22Z"
 ---
 
 # Library References — phase-03-videos
@@ -39,6 +43,8 @@ _Used by: `phase-03-videos/TD-01`, `TD-07`, `TD-13`._
 
 _Used by: `phase-03-videos/TD-01`, `TD-08`._
 
+- **Module format (Revision 2026-11-22):** v12 (and its dependency `@nestjs/bull-shared@12`) is published as ESM-only (`"type": "module"`). Node 25 can `require()` it at runtime, but ts-jest (CommonJS) cannot; both Jest configs add a `transform` entry for `node_modules/@nestjs/(bullmq|bull-shared)/*.js` (ts-jest, `allowJs`, `isolatedModules`) plus a matching `transformIgnorePatterns` exception.
+
 - **Root config (async, ConfigService/registerAs-friendly):**
   ```ts
   BullModule.forRootAsync({
@@ -51,6 +57,12 @@ _Used by: `phase-03-videos/TD-01`, `TD-08`._
 - **Queue registration:** `BullModule.registerQueue({ name: 'video-processing', defaultJobOptions: {...} })` — DI token `getQueueToken('video-processing')` = `'BullQueue_video-processing'`; inject with `@InjectQueue('video-processing') private readonly queue: Queue`.
 - **Consumer:** class decorated `@Processor('video-processing', { concurrency })` extending `WorkerHost`, implementing `async process(job: Job): Promise<any>`; throwing fails the job and triggers retry per job options. Worker events via `@OnWorkerEvent('failed')` etc. (bound to the Worker; the `worker` getter is only available after `onModuleInit`).
 - Processors are discovered only in the Nest context that registers them — registering the `@Processor` provider only in the worker's module keeps the API process from consuming jobs (TD-08).
+
+### ioredis
+
+_Used by: `phase-03-videos/TD-01` (Revision 2026-11-22)._
+
+- `bullmq@6` declares `ioredis` (and `redis`) as **optional** peer dependencies; the default `RedisConnection` builds an `ioredis` client from `connection: { host, port }`, so `ioredis` must be installed explicitly — without it the connection is never created and `Queue.close()` fails on an undefined client. Alternatives (node-redis via `createNodeRedisClient`, `RedisConnection.clientFactory`) are not used.
 
 ### @aws-sdk/client-s3
 

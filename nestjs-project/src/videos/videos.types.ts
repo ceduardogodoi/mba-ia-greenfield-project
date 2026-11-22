@@ -18,3 +18,8 @@ export interface UploadedPartsView {
   partCount: number;
   uploadedParts: { partNumber: number; sizeBytes: number; etag: string }[];
 }
+
+export interface CompletedUpload {
+  id: string;
+  status: VideoStatus;
+}

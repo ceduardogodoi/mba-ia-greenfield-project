@@ -22,7 +22,7 @@ target_file: test/videos-playback.e2e-spec.ts
 
 **Covers AC:** #1
 **Source:** auto
-**Last sync:** 2026-11-22T12:29:47Z
+**Last sync:** 2026-11-22T14:09:38Z
 
 **Steps:**
   1. GET /videos/{slug}/stream com o token do dono
@@ -32,7 +32,7 @@ target_file: test/videos-playback.e2e-spec.ts
 
 **Covers AC:** #2
 **Source:** auto
-**Last sync:** 2026-11-22T12:29:47Z
+**Last sync:** 2026-11-22T14:09:38Z
 
 **Steps:**
   1. GET na `Location` do stream com header `Range: bytes=0-1023`
@@ -42,7 +42,7 @@ target_file: test/videos-playback.e2e-spec.ts
 
 **Covers AC:** #3
 **Source:** auto
-**Last sync:** 2026-11-22T12:29:47Z
+**Last sync:** 2026-11-22T14:09:38Z
 
 **Steps:**
   1. GET /videos/{slug}/download com o token do dono
@@ -54,7 +54,7 @@ target_file: test/videos-playback.e2e-spec.ts
 
 **Covers AC:** #4
 **Source:** auto
-**Last sync:** 2026-11-22T12:29:47Z
+**Last sync:** 2026-11-22T14:09:38Z
 
 **Steps:**
   1. Criar um segundo vídeo via POST /videos (fica `draft`) e chamar GET /videos/{slug}/stream com o slug dele
@@ -64,7 +64,7 @@ target_file: test/videos-playback.e2e-spec.ts
 
 **Covers AC:** #5
 **Source:** auto
-**Last sync:** 2026-11-22T12:29:47Z
+**Last sync:** 2026-11-22T14:09:38Z
 
 **Steps:**
   1. GET /videos/AAAAAAAAAAA/stream (slug inexistente) com o token do dono

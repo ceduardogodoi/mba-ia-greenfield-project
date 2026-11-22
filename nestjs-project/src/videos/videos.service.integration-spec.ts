@@ -1,5 +1,10 @@
+import { BullModule } from '@nestjs/bullmq';
 import { ConfigModule } from '@nestjs/config';
+import { getQueueToken } from '@nestjs/bullmq';
 import { Test, TestingModule } from '@nestjs/testing';
+import type { Queue } from 'bullmq';
+import { VideoNotDraftException } from '../common/exceptions/domain.exception';
+import { VIDEO_PROCESSING_QUEUE } from '../queue/video-processing.queue';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { RefreshToken } from '../auth/entities/refresh-token.entity';
@@ -32,6 +37,14 @@ describe('VideosService (integration — DB + MinIO)', () => {
     module = await Test.createTestingModule({
       imports: [
         ConfigModule.forRoot({ isGlobal: true, load: [storageConfig] }),
+        // Isolated key prefix: the Compose video-worker (default prefix) never sees test jobs.
+        BullModule.forRoot({
+          connection: {
+            host: process.env.REDIS_HOST ?? 'redis',
+            port: Number(process.env.REDIS_PORT ?? 6379),
+          },
+          prefix: 'streamtube-test',
+        }),
         TypeOrmModule.forRoot(createTestDataSource(ALL_ENTITIES).options),
         VideosModule,
       ],
@@ -111,6 +124,40 @@ describe('VideosService (integration — DB + MinIO)', () => {
           etag: response.headers.get('etag'),
         },
       ]);
+    });
+  });
+
+  describe('completeUpload', () => {
+    it('should complete the stored object, move to processing and enqueue process-video with jobId = videoId', async () => {
+      const owner = await createOwner();
+      const body = Buffer.alloc(1024, 9);
+      const { id } = await videos.initiateUpload(owner.userId, {
+        fileName: 'aula.mp4',
+        sizeBytes: body.length,
+        contentType: 'video/mp4',
+      });
+      const { parts } = await videos.signUploadParts(owner.userId, id, [1]);
+      await fetch(parts[0].url, { method: 'PUT', body: new Uint8Array(body) });
+
+      const result = await videos.completeUpload(owner.userId, id);
+
+      expect(result).toEqual({ id, status: VideoStatus.PROCESSING });
+      const row = await videoRepository.findOneByOrFail({ id });
+      expect(row.status).toBe(VideoStatus.PROCESSING);
+      expect(row.upload_id).toBeNull();
+      await expect(storage.headObject(row.storage_key)).resolves.toEqual({
+        contentLength: body.length,
+      });
+
+      const queue = module.get<Queue>(getQueueToken(VIDEO_PROCESSING_QUEUE));
+      const job = await queue.getJob(id);
+      expect(job?.name).toBe('process-video');
+      expect(job?.data).toEqual({ videoId: id });
+      await job?.remove();
+
+      await expect(videos.completeUpload(owner.userId, id)).rejects.toThrow(
+        VideoNotDraftException,
+      );
     });
   });
 });

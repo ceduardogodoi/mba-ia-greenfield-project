@@ -22,7 +22,7 @@ target_file: test/videos-create.e2e-spec.ts
 
 **Covers AC:** #1, #2
 **Source:** auto
-**Last sync:** 2026-11-22T12:29:47Z
+**Last sync:** 2026-11-22T14:09:38Z
 
 **Steps:**
   1. POST /videos com `Authorization: Bearer <token>` e body `{ fileName: "aula.mp4", sizeBytes: 150000000, contentType: "video/mp4" }`
@@ -35,7 +35,7 @@ target_file: test/videos-create.e2e-spec.ts
 
 **Covers AC:** #3
 **Source:** auto
-**Last sync:** 2026-11-22T12:29:47Z
+**Last sync:** 2026-11-22T14:09:38Z
 
 **Steps:**
   1. POST /videos com body válido incluindo `title: "Minha aula de NestJS"`
@@ -46,7 +46,7 @@ target_file: test/videos-create.e2e-spec.ts
 
 **Covers AC:** #4
 **Source:** auto
-**Last sync:** 2026-11-22T12:29:47Z
+**Last sync:** 2026-11-22T14:09:38Z
 
 **Steps:**
   1. POST /videos com `sizeBytes: 10737418241`
@@ -60,7 +60,7 @@ target_file: test/videos-create.e2e-spec.ts
 
 **Covers AC:** #5
 **Source:** auto
-**Last sync:** 2026-11-22T12:29:47Z
+**Last sync:** 2026-11-22T14:09:38Z
 
 **Steps:**
   1. POST /videos com body válido e sem header `Authorization`
@@ -70,7 +70,7 @@ target_file: test/videos-create.e2e-spec.ts
 
 **Covers AC:** #6
 **Source:** auto
-**Last sync:** 2026-11-22T12:29:47Z
+**Last sync:** 2026-11-22T14:09:38Z
 
 **Steps:**
   1. POST /videos duas vezes com o mesmo body válido

@@ -1,15 +1,25 @@
+import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
+import { Queue } from 'bullmq';
 import { Repository } from 'typeorm';
 import { ChannelsService } from '../channels/channels.service';
 import { isPgUniqueViolationOnColumn } from '../common/database/pg-errors';
 import {
   ChannelNotFoundException,
   InvalidPartNumberException,
+  UploadIncompleteException,
+  UploadSizeMismatchException,
   VideoNotDraftException,
   VideoNotFoundException,
 } from '../common/exceptions/domain.exception';
+import {
+  PROCESS_VIDEO_JOB,
+  PROCESS_VIDEO_JOB_OPTIONS,
+  VIDEO_PROCESSING_QUEUE,
+  type ProcessVideoJobData,
+} from '../queue/video-processing.queue';
 import { originalKey } from '../storage/storage-keys';
 import { StorageService } from '../storage/storage.service';
 import { InitiateUploadDto } from './dto/initiate-upload.dto';
@@ -22,6 +32,7 @@ import {
 } from './upload-policy';
 import { generateVideoSlug } from './video-slug.util';
 import type {
+  CompletedUpload,
   InitiatedUpload,
   SignedUploadParts,
   UploadedPartsView,
@@ -36,6 +47,8 @@ export class VideosService {
     private readonly videoRepository: Repository<Video>,
     private readonly channelsService: ChannelsService,
     private readonly storageService: StorageService,
+    @InjectQueue(VIDEO_PROCESSING_QUEUE)
+    private readonly videoProcessingQueue: Queue<ProcessVideoJobData>,
   ) {}
 
   /**
@@ -124,6 +137,71 @@ export class VideosService {
       partCount: partCount(video.size_bytes),
       uploadedParts,
     };
+  }
+
+  /**
+   * Completes the multipart upload server-side and triggers processing
+   * (phase-03-videos/TD-07, TD-13). Parts are listed from the storage — client
+   * ETags are never trusted — and must cover 1..partCount with sizes summing
+   * to the declared size.
+   */
+  async completeUpload(
+    userId: string,
+    videoId: string,
+  ): Promise<CompletedUpload> {
+    const video = await this.findOwnedDraft(userId, videoId);
+    const uploadId = video.upload_id!;
+    const parts = await this.storageService.listParts(
+      video.storage_key,
+      uploadId,
+    );
+
+    const stored = new Set(parts.map((part) => part.partNumber));
+    for (let n = 1; n <= partCount(video.size_bytes); n++) {
+      if (!stored.has(n)) {
+        throw new UploadIncompleteException();
+      }
+    }
+    const storedBytes = parts.reduce((sum, part) => sum + part.sizeBytes, 0);
+    if (storedBytes !== video.size_bytes) {
+      throw new UploadSizeMismatchException();
+    }
+
+    await this.storageService.completeMultipartUpload(
+      video.storage_key,
+      uploadId,
+      parts,
+    );
+
+    // Conditional update: only one concurrent completion can move the row out of draft.
+    const result = await this.videoRepository.update(
+      { id: video.id, status: VideoStatus.DRAFT },
+      { status: VideoStatus.PROCESSING, upload_id: null },
+    );
+    if (!result.affected) {
+      throw new VideoNotDraftException();
+    }
+
+    try {
+      await this.videoProcessingQueue.add(
+        PROCESS_VIDEO_JOB,
+        { videoId: video.id },
+        { ...PROCESS_VIDEO_JOB_OPTIONS, jobId: video.id },
+      );
+    } catch (err) {
+      await this.videoRepository.update(
+        { id: video.id },
+        {
+          status: VideoStatus.FAILED,
+          failure_reason: `Failed to enqueue processing job: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        },
+      );
+      throw err;
+    }
+
+    return { id: video.id, status: VideoStatus.PROCESSING };
   }
 
   /**

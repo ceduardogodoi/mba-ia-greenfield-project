@@ -1,7 +1,7 @@
 # phase-03-videos — Progress
 
 **Status:** in_progress
-**SIs:** 6/12 completed
+**SIs:** 7/12 completed
 
 ### SI-03.1 — Infra: dependências, configuração e serviços de storage/fila no Compose
 - **Status:** completed
@@ -47,9 +47,14 @@
   - `ParseUUIDPipe` failures surface as `400 VALIDATION_ERROR` through the existing `ValidationExceptionFilter`.
 
 ### SI-03.7 — Endpoint POST /videos/{id}/upload/complete (conclusão do upload e enfileiramento)
-- **Status:** pending
-- **Tests:** —
-- **Observations:** none
+- **Status:** completed
+- **Tests:** 41 passing in `src/videos` (`videos.service.spec.ts` +6, `videos.service.integration-spec.ts` +1 with real Redis job assertion, `videos.module.spec.ts`) + e2e `test/videos-upload-complete.e2e-spec.ts` 5; full suite 200 + e2e 67 passing
+- **Observations:**
+  - `@nestjs/bullmq@12` / `@nestjs/bull-shared@12` are ESM-only; per user decision v12 is kept and both Jest configs transpile those packages (ts-jest `allowJs`). `bullmq@6` made the Redis client an optional peer, so `ioredis@^5.11.1` was installed. Recorded as a Revision on TD-01 and in `library-refs.md`.
+  - `npm run test:e2e` now passes `--runInBand`, as `nestjs-project/CLAUDE.md` already documented; with 6 DB-sharing suites the parallel default caused cross-suite contamination.
+  - Spec `videos-upload-complete.plan.md` §1.1 no longer polls for `ready` through the Compose worker (delivered only in SI-03.9) and uses a generated buffer instead of the SI-03.8 fixture; the worker path stays covered by the `videos-get`/`videos-playback` specs.
+  - Completion uses a conditional `UPDATE ... WHERE status = 'draft'` so concurrent completions cannot enqueue twice; if enqueueing fails the video is marked `failed` with the reason and the error is rethrown.
+  - E2E completions enqueue real jobs in the default queue; until the worker exists (SI-03.9) they stay pending, and the worker treats missing videos as no-ops.
 
 ### SI-03.8 — Serviço de mídia com FFmpeg (metadados e thumbnail)
 - **Status:** pending

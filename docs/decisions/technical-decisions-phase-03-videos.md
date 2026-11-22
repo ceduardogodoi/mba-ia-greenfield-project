@@ -50,7 +50,9 @@ _Subprojects in scope:_
 **Recommendation:** **Option A (BullMQ + Redis)** — it is the only option whose built-in semantics (attempts + exponential backoff, deterministic `jobId`, final-failure hook) map one-to-one to the status lifecycle in TD-13 without hand-built retry infrastructure, and `@nestjs/bullmq` gives the same DI/module ergonomics the codebase already uses. Redis runs as `redis:7.4-alpine` in Compose (service name `redis`), configured via `REDIS_HOST`/`REDIS_PORT`.
 
 **Decision:** A (BullMQ + Redis)
-**Libraries:** bullmq, @nestjs/bullmq
+**Libraries:** bullmq, @nestjs/bullmq, ioredis
+**Revisions:**
+- 2026-11-22 — `ioredis@^5.11.1` added explicitly: `bullmq@6` turned the Redis client into an optional peer dependency (`ioredis`/`redis`), and its default connection factory uses `ioredis`. `@nestjs/bullmq@12` (and `@nestjs/bull-shared@12`) ship ESM-only; the CommonJS project keeps v12 and the Jest configs (`package.json` jest + `test/jest-e2e.json`) transpile those two packages with ts-jest (`allowJs`). Rationale: found during SI-03.7 implementation; option A unchanged, user chose to keep v12 over downgrading to the CommonJS v11.
 
 ---
 

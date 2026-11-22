@@ -22,7 +22,7 @@ target_file: test/videos-get.e2e-spec.ts
 
 **Covers AC:** #1
 **Source:** auto
-**Last sync:** 2026-11-22T12:29:47Z
+**Last sync:** 2026-11-22T14:09:38Z
 
 **Steps:**
   1. POST /videos com body válido e GET /videos/{id}
@@ -32,7 +32,7 @@ target_file: test/videos-get.e2e-spec.ts
 
 **Covers AC:** #2
 **Source:** auto
-**Last sync:** 2026-11-22T12:29:47Z
+**Last sync:** 2026-11-22T14:09:38Z
 
 **Steps:**
   1. Enviar `test/fixtures/sample.mp4` (parte única), concluir o upload e fazer polling de GET /videos/{id} até `status: "ready"` (timeout 30 s)
@@ -44,7 +44,7 @@ target_file: test/videos-get.e2e-spec.ts
 
 **Covers AC:** #3
 **Source:** auto
-**Last sync:** 2026-11-22T12:29:47Z
+**Last sync:** 2026-11-22T14:09:38Z
 
 **Steps:**
   1. Enviar `test/fixtures/not-a-video.mp4` (parte única), concluir o upload e fazer polling de GET /videos/{id} até `status: "failed"` (timeout 30 s)
@@ -54,7 +54,7 @@ target_file: test/videos-get.e2e-spec.ts
 
 **Covers AC:** #4
 **Source:** auto
-**Last sync:** 2026-11-22T12:29:47Z
+**Last sync:** 2026-11-22T14:09:38Z
 
 **Steps:**
   1. GET /videos/not-a-uuid

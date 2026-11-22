@@ -1,3 +1,4 @@
+import { BullModule } from '@nestjs/bullmq';
 import { ConfigModule } from '@nestjs/config';
 import { Test } from '@nestjs/testing';
 import { getRepositoryToken, TypeOrmModule } from '@nestjs/typeorm';
@@ -18,6 +19,14 @@ describe('VideosModule', () => {
     const module = await Test.createTestingModule({
       imports: [
         ConfigModule.forRoot({ isGlobal: true, load: [storageConfig] }),
+        // Isolated key prefix: the Compose video-worker (default prefix) never sees test jobs.
+        BullModule.forRoot({
+          connection: {
+            host: process.env.REDIS_HOST ?? 'redis',
+            port: Number(process.env.REDIS_PORT ?? 6379),
+          },
+          prefix: 'streamtube-test',
+        }),
         TypeOrmModule.forRoot(createTestDataSource(ALL_ENTITIES).options),
         VideosModule,
       ],

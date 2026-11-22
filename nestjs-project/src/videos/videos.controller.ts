@@ -22,6 +22,7 @@ import { InitiateUploadDto } from './dto/initiate-upload.dto';
 import { SignUploadPartsDto } from './dto/sign-upload-parts.dto';
 import { VideosService } from './videos.service';
 import type {
+  CompletedUpload,
   InitiatedUpload,
   SignedUploadParts,
   UploadedPartsView,
@@ -188,5 +189,50 @@ export class VideosController {
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<UploadedPartsView> {
     return this.videosService.listUploadedParts(user.sub, id);
+  }
+
+  @Post(':id/upload/complete')
+  @HttpCode(HttpStatus.ACCEPTED)
+  @ApiOperation({
+    summary: 'Complete the upload and start processing',
+    description:
+      'Completes the multipart upload server-side (parts are listed from the storage), checks that all parts are present and match the declared size, moves the video to processing and enqueues the processing job.',
+  })
+  @ApiResponse({
+    status: 202,
+    description: 'Upload completed; processing enqueued',
+    schema: {
+      properties: {
+        id: { type: 'string', format: 'uuid' },
+        status: { type: 'string', enum: ['processing'] },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description:
+      'Invalid video id, missing parts (UPLOAD_INCOMPLETE) or size mismatch (UPLOAD_SIZE_MISMATCH)',
+    schema: errorSchema,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Missing or invalid access token',
+    schema: errorSchema,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Video not found (VIDEO_NOT_FOUND)',
+    schema: errorSchema,
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Upload already completed (VIDEO_NOT_DRAFT)',
+    schema: errorSchema,
+  })
+  async completeUpload(
+    @CurrentUser() user: JwtPayload,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<CompletedUpload> {
+    return this.videosService.completeUpload(user.sub, id);
   }
 }

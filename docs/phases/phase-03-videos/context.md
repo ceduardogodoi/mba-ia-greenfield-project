@@ -3,7 +3,7 @@ kind: phase
 name: phase-03-videos
 sources_mtime:
   docs/project-plan.md: "2026-11-21T12:12:22Z"
-  docs/decisions/technical-decisions-phase-03-videos.md: "2026-11-22T12:19:20Z"
+  docs/decisions/technical-decisions-phase-03-videos.md: "2026-11-22T14:09:22Z"
   docs/decisions/technical-decisions-openapi-docs-nestjs.md: "2026-11-21T12:12:22Z"
   docs/phases/phase-01-configuracao-base/context.md: "2026-11-21T12:12:22Z"
   docs/phases/phase-02-auth/context.md: "2026-11-21T12:12:22Z"
@@ -44,7 +44,8 @@ sources_mtime:
 
 | Ref | Source | Scope | Topic | Status | Decision | Libraries |
 |-----|--------|-------|-------|--------|----------|-----------|
-| phase-03-videos/TD-01 | phase | Backend | Message Queue Technology | decided | A (BullMQ + Redis) | bullmq, @nestjs/bullmq |
+| phase-03-videos/TD-01 | phase | Backend | Message Queue Technology | decided | A (BullMQ + Redis) | bullmq, @nestjs/bullmq, ioredis |
+| └─ Last revision: 2026-11-22 — `ioredis` explicit; `@nestjs/bullmq@12` ESM transpiled in Jest | | | | | | |
 | phase-03-videos/TD-02 | phase | Backend | S3 Client Library | decided | A (AWS SDK v3) | @aws-sdk/client-s3, @aws-sdk/s3-request-presigner |
 | phase-03-videos/TD-03 | phase | Repo-wide | Local S3-Compatible Storage Image and Provisioning | decided | A (pinned `pgsty/minio` + one-shot `storage-init` with `pgsty/mc`) | — |
 | phase-03-videos/TD-04 | phase | Backend | Bucket and Object Key Layout | decided | A (single bucket, `videos/{videoId}/original` + `videos/{videoId}/thumbnail.jpg`) | — |
@@ -85,7 +86,9 @@ _(current-phase TDs only — from decisions-detail-reader)_
 ### phase-03-videos/TD-01
 
 **Recommendation:** it is the only option whose built-in semantics (attempts + exponential backoff, deterministic `jobId`, final-failure hook) map one-to-one to the status lifecycle in TD-13 without hand-built retry infrastructure, and `@nestjs/bullmq` gives the same DI/module ergonomics the codebase already uses. Redis runs as `redis:7.4-alpine` in Compose (service name `redis`), configured via `REDIS_HOST`/`REDIS_PORT`.
-**Libraries:** bullmq, @nestjs/bullmq
+**Libraries:** bullmq, @nestjs/bullmq, ioredis
+**Revisions:**
+- 2026-11-22 — `ioredis@^5.11.1` added (optional peer of `bullmq@6`, used by its default connection); `@nestjs/bullmq@12` is ESM-only and is transpiled by the Jest configs. Rationale: found in SI-03.7; option A unchanged.
 
 ### phase-03-videos/TD-02
 

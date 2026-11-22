@@ -3,9 +3,9 @@ kind: phase
 name: phase-03-videos
 test_specs_aware: true
 sources_mtime:
-  docs/phases/phase-03-videos/context.md: "2026-11-22T12:19:31Z"
-  docs/phases/phase-03-videos/library-refs.md: "2026-11-22T12:19:31Z"
-  docs/decisions/technical-decisions-phase-03-videos.md: "2026-11-22T12:19:20Z"
+  docs/phases/phase-03-videos/context.md: "2026-11-22T14:09:22Z"
+  docs/phases/phase-03-videos/library-refs.md: "2026-11-22T14:09:22Z"
+  docs/decisions/technical-decisions-phase-03-videos.md: "2026-11-22T14:09:22Z"
 ---
 
 # Phase 03 — Upload e Processamento de Vídeos

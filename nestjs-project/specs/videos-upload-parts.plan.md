@@ -22,7 +22,7 @@ target_file: test/videos-upload-parts.e2e-spec.ts
 
 **Covers AC:** #1
 **Source:** auto
-**Last sync:** 2026-11-22T12:29:47Z
+**Last sync:** 2026-11-22T14:09:38Z
 
 **Steps:**
   1. POST /videos/{id}/upload/parts com `{ partNumbers: [1, 2] }`
@@ -34,7 +34,7 @@ target_file: test/videos-upload-parts.e2e-spec.ts
 
 **Covers AC:** #2, #3
 **Source:** auto
-**Last sync:** 2026-11-22T12:29:47Z
+**Last sync:** 2026-11-22T14:09:38Z
 
 **Steps:**
   1. POST /videos/{id}/upload/parts com `{ partNumbers: [1] }` e `PUT` de um buffer de 64 MiB direto na `url` retornada (fetch, sem passar pela API)
@@ -47,7 +47,7 @@ target_file: test/videos-upload-parts.e2e-spec.ts
 
 **Covers AC:** #4
 **Source:** auto
-**Last sync:** 2026-11-22T12:29:47Z
+**Last sync:** 2026-11-22T14:09:38Z
 
 **Steps:**
   1. POST /videos/{id}/upload/parts com `{ partNumbers: [3] }`
@@ -57,7 +57,7 @@ target_file: test/videos-upload-parts.e2e-spec.ts
 
 **Covers AC:** #5
 **Source:** auto
-**Last sync:** 2026-11-22T12:29:47Z
+**Last sync:** 2026-11-22T14:09:38Z
 
 **Steps:**
   1. Autenticar um segundo usuário e chamar POST /videos/{id}/upload/parts com `{ partNumbers: [1] }`
@@ -69,7 +69,7 @@ target_file: test/videos-upload-parts.e2e-spec.ts
 
 **Covers AC:** #6
 **Source:** auto
-**Last sync:** 2026-11-22T12:29:47Z
+**Last sync:** 2026-11-22T14:09:38Z
 
 **Steps:**
   1. Atualizar a linha do vídeo para `status = 'processing'` (estado pós-conclusão)
