@@ -128,4 +128,61 @@ describe('exportSpec (integration)', () => {
       }
     }
   });
+
+  describe('videos endpoints (phase 03)', () => {
+    type Operation = {
+      security?: Record<string, unknown>[];
+      responses: Record<string, unknown>;
+    };
+    const expected: [string, string][] = [
+      ['/videos', 'post'],
+      ['/videos/{id}/upload/parts', 'post'],
+      ['/videos/{id}/upload/parts', 'get'],
+      ['/videos/{id}/upload/complete', 'post'],
+      ['/videos/{id}', 'get'],
+      ['/videos/{slug}/stream', 'get'],
+      ['/videos/{slug}/download', 'get'],
+    ];
+
+    function operation(path: string, method: string): Operation | undefined {
+      const paths = document.paths as Record<string, Record<string, Operation>>;
+      return paths[path]?.[method];
+    }
+
+    it.each(expected)('documents %s (%s) with bearer auth', (path, method) => {
+      const op = operation(path, method);
+      expect(op).toBeDefined();
+      expect(op!.security).toEqual([{ 'access-token': [] }]);
+    });
+
+    it.each(expected)(
+      'documents %s (%s) error responses with the shared envelope',
+      (path, method) => {
+        const op = operation(path, method)!;
+        const notFound = (op.responses['404'] ?? op.responses['400']) as Record<
+          string,
+          unknown
+        >;
+        expect(JSON.stringify(notFound)).toContain(
+          '#/components/schemas/ApiErrorEnvelope',
+        );
+      },
+    );
+
+    it('documents the request body of POST /videos', () => {
+      const components = document.components as Record<string, unknown>;
+      const schemas = components.schemas as Record<
+        string,
+        { properties: Record<string, unknown> }
+      >;
+      expect(Object.keys(schemas['InitiateUploadDto'].properties)).toEqual(
+        expect.arrayContaining([
+          'fileName',
+          'sizeBytes',
+          'contentType',
+          'title',
+        ]),
+      );
+    });
+  });
 });
