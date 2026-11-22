@@ -1,7 +1,7 @@
 # phase-03-videos — Progress
 
 **Status:** in_progress
-**SIs:** 10/12 completed
+**SIs:** 11/12 completed
 
 ### SI-03.1 — Infra: dependências, configuração e serviços de storage/fila no Compose
 - **Status:** completed
@@ -81,9 +81,11 @@
   - `VideoResponseDto` documents the nested `metadata` shape for the exported OpenAPI contract; TTL of presigned playback/thumbnail URLs is `PLAYBACK_URL_TTL_SECONDS` (3600) in `upload-policy.ts`.
 
 ### SI-03.11 — Endpoints GET /videos/{slug}/stream e GET /videos/{slug}/download
-- **Status:** pending
-- **Tests:** —
-- **Observations:** none
+- **Status:** completed
+- **Tests:** 36 passing (`videos.service.spec.ts` 31 — 7 new, `videos.service.integration-spec.ts` 5 — 2 new with real MinIO Range/Content-Disposition) + e2e `test/videos-playback.e2e-spec.ts` 5 (from `nestjs-project/specs/videos-playback.plan.md`, video taken to `ready` by the Compose worker)
+- **Observations:**
+  - Handlers use Nest's `@Redirect()` returning `{ url, statusCode: 302 }`, keeping the controller free of Express response handling.
+  - The download `Content-Disposition` file name is reduced to printable ASCII without quotes/backslashes (`aula "final" ç.mp4` → `aula _final_ _.mp4`) to keep the header well-formed; an RFC 5987 `filename*` was not added because the contract fixes the header to `attachment; filename="..."`.
 
 ### SI-03.12 — Documentação: OpenAPI, testing guide, diagrama e CLAUDE.md da fase de vídeos
 - **Status:** pending

@@ -7,6 +7,7 @@ import {
   Param,
   ParseUUIDPipe,
   Post,
+  Redirect,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
@@ -264,5 +265,81 @@ export class VideosController {
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<VideoResponseDto> {
     return this.videosService.getOwnedVideo(user.sub, id);
+  }
+
+  @Get(':slug/stream')
+  @Redirect()
+  @ApiOperation({
+    summary: 'Stream a ready video',
+    description:
+      'Redirects (302) to a short-lived presigned URL of the original file. The object storage serves Range requests with 206 Partial Content, so playback starts without downloading the whole file. Owner-only in this phase.',
+  })
+  @ApiResponse({
+    status: 302,
+    description: 'Redirect to the presigned streaming URL (Location header)',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Missing or invalid access token',
+    schema: errorSchema,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Video not found (VIDEO_NOT_FOUND)',
+    schema: errorSchema,
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Video is not ready (VIDEO_NOT_READY)',
+    schema: errorSchema,
+  })
+  async stream(
+    @CurrentUser() user: JwtPayload,
+    @Param('slug') slug: string,
+  ): Promise<{ url: string; statusCode: number }> {
+    const url = await this.videosService.getPlaybackUrl(
+      user.sub,
+      slug,
+      'stream',
+    );
+    return { url, statusCode: HttpStatus.FOUND };
+  }
+
+  @Get(':slug/download')
+  @Redirect()
+  @ApiOperation({
+    summary: 'Download a ready video',
+    description:
+      'Redirects (302) to a short-lived presigned URL that serves the original file as an attachment with its original file name. Owner-only in this phase.',
+  })
+  @ApiResponse({
+    status: 302,
+    description: 'Redirect to the presigned download URL (Location header)',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Missing or invalid access token',
+    schema: errorSchema,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Video not found (VIDEO_NOT_FOUND)',
+    schema: errorSchema,
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Video is not ready (VIDEO_NOT_READY)',
+    schema: errorSchema,
+  })
+  async download(
+    @CurrentUser() user: JwtPayload,
+    @Param('slug') slug: string,
+  ): Promise<{ url: string; statusCode: number }> {
+    const url = await this.videosService.getPlaybackUrl(
+      user.sub,
+      slug,
+      'download',
+    );
+    return { url, statusCode: HttpStatus.FOUND };
   }
 }

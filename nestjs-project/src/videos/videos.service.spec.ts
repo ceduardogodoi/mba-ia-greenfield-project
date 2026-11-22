@@ -18,6 +18,7 @@ import {
   UploadSizeMismatchException,
   VideoNotDraftException,
   VideoNotFoundException,
+  VideoNotReadyException,
 } from '../common/exceptions/domain.exception';
 import type { PresignGetOptions, UploadedPart } from '../storage/storage.types';
 import { StorageService } from '../storage/storage.service';
@@ -435,6 +436,79 @@ describe('VideosService', () => {
 
       await expect(service.getOwnedVideo('user-1', 'video-1')).rejects.toThrow(
         VideoNotFoundException,
+      );
+    });
+  });
+
+  describe('getPlaybackUrl', () => {
+    const slug = 'AbCdEfGhIjK';
+    const readyVideo = (overrides: Partial<Video> = {}) =>
+      draftVideo({
+        slug,
+        status: VideoStatus.READY,
+        upload_id: null,
+        content_type: 'video/mp4',
+        original_filename: 'aula final.mp4',
+        ...overrides,
+      });
+
+    it('should report VIDEO_NOT_FOUND for a malformed slug without querying', async () => {
+      await expect(
+        service.getPlaybackUrl('user-1', 'bad', 'stream'),
+      ).rejects.toThrow(VideoNotFoundException);
+      expect(videoRepository.findOne).not.toHaveBeenCalled();
+    });
+
+    it('should look the slug up only inside the caller channel', async () => {
+      videoRepository.findOne.mockResolvedValue(null);
+
+      await expect(
+        service.getPlaybackUrl('user-1', slug, 'stream'),
+      ).rejects.toThrow(VideoNotFoundException);
+      expect(videoRepository.findOne).toHaveBeenCalledWith({
+        where: { slug, channel_id: 'channel-1' },
+      });
+    });
+
+    it.each([VideoStatus.DRAFT, VideoStatus.PROCESSING, VideoStatus.FAILED])(
+      'should throw VIDEO_NOT_READY while the video is %s',
+      async (status) => {
+        videoRepository.findOne.mockResolvedValue(readyVideo({ status }));
+
+        await expect(
+          service.getPlaybackUrl('user-1', slug, 'stream'),
+        ).rejects.toThrow(VideoNotReadyException);
+      },
+    );
+
+    it('should sign an inline public URL for streaming', async () => {
+      videoRepository.findOne.mockResolvedValue(readyVideo());
+
+      await service.getPlaybackUrl('user-1', slug, 'stream');
+
+      expect(storageService.presignGet).toHaveBeenCalledWith(
+        'videos/video-1/original',
+        {
+          audience: 'public',
+          expiresInSeconds: 3600,
+          contentType: 'video/mp4',
+          contentDisposition: undefined,
+        },
+      );
+    });
+
+    it('should sign an attachment URL with the original file name for download', async () => {
+      videoRepository.findOne.mockResolvedValue(
+        readyVideo({ original_filename: 'aula "final" ç.mp4' }),
+      );
+
+      await service.getPlaybackUrl('user-1', slug, 'download');
+
+      expect(storageService.presignGet).toHaveBeenCalledWith(
+        'videos/video-1/original',
+        expect.objectContaining({
+          contentDisposition: 'attachment; filename="aula _final_ _.mp4"',
+        }),
       );
     });
   });

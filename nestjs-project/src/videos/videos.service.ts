@@ -13,6 +13,7 @@ import {
   UploadSizeMismatchException,
   VideoNotDraftException,
   VideoNotFoundException,
+  VideoNotReadyException,
 } from '../common/exceptions/domain.exception';
 import {
   PROCESS_VIDEO_JOB,
@@ -32,7 +33,7 @@ import {
   partCount,
   PLAYBACK_URL_TTL_SECONDS,
 } from './upload-policy';
-import { generateVideoSlug } from './video-slug.util';
+import { generateVideoSlug, VIDEO_SLUG_PATTERN } from './video-slug.util';
 import type {
   CompletedUpload,
   InitiatedUpload,
@@ -41,6 +42,13 @@ import type {
 } from './videos.types';
 
 const MAX_SLUG_ATTEMPTS = 5;
+
+export type PlaybackMode = 'stream' | 'download';
+
+/** Keeps the Content-Disposition header well-formed (ASCII, no quotes/backslashes). */
+function safeFilename(name: string): string {
+  return name.replace(/[^\x20-\x7e]|["\\]/g, '_');
+}
 
 @Injectable()
 export class VideosService {
@@ -234,6 +242,42 @@ export class VideosService {
       createdAt: video.created_at.toISOString(),
       updatedAt: video.updated_at.toISOString(),
     };
+  }
+
+  /**
+   * Short-lived presigned URL of the original for progressive streaming (the
+   * storage answers Range requests with 206) or download as attachment
+   * (phase-03-videos/TD-10, TD-11, TD-12).
+   */
+  async getPlaybackUrl(
+    userId: string,
+    slug: string,
+    mode: PlaybackMode,
+  ): Promise<string> {
+    const channel = VIDEO_SLUG_PATTERN.test(slug)
+      ? await this.channelsService.findByUserId(userId)
+      : null;
+    const video = channel
+      ? await this.videoRepository.findOne({
+          where: { slug, channel_id: channel.id },
+        })
+      : null;
+    if (!video) {
+      throw new VideoNotFoundException();
+    }
+    if (video.status !== VideoStatus.READY) {
+      throw new VideoNotReadyException();
+    }
+
+    return this.storageService.presignGet(video.storage_key, {
+      audience: 'public',
+      expiresInSeconds: PLAYBACK_URL_TTL_SECONDS,
+      contentType: video.content_type,
+      contentDisposition:
+        mode === 'download'
+          ? `attachment; filename="${safeFilename(video.original_filename)}"`
+          : undefined,
+    });
   }
 
   /**

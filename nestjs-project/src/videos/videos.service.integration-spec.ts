@@ -160,4 +160,50 @@ describe('VideosService (integration — DB + MinIO)', () => {
       );
     });
   });
+
+  describe('getPlaybackUrl', () => {
+    async function readyVideo(owner: { userId: string; channelId: string }) {
+      const bytes = Buffer.alloc(4096, 4);
+      const { id, slug } = await videos.initiateUpload(owner.userId, {
+        fileName: 'aula.mp4',
+        sizeBytes: bytes.length,
+        contentType: 'video/mp4',
+      });
+      const row = await videoRepository.findOneByOrFail({ id });
+      await storage.putObject(row.storage_key, bytes, 'video/mp4');
+      await videoRepository.update(
+        { id },
+        { status: VideoStatus.READY, upload_id: null },
+      );
+      return { slug, bytes };
+    }
+
+    it('should return a stream URL whose storage answers Range with 206', async () => {
+      const owner = await createOwner();
+      const { slug } = await readyVideo(owner);
+
+      const url = await videos.getPlaybackUrl(owner.userId, slug, 'stream');
+      const response = await fetch(url, {
+        headers: { Range: 'bytes=0-1023' },
+      });
+
+      expect(response.status).toBe(206);
+      expect(response.headers.get('content-range')).toBe('bytes 0-1023/4096');
+      expect((await response.arrayBuffer()).byteLength).toBe(1024);
+    });
+
+    it('should return a download URL served as attachment with the original name', async () => {
+      const owner = await createOwner();
+      const { slug, bytes } = await readyVideo(owner);
+
+      const url = await videos.getPlaybackUrl(owner.userId, slug, 'download');
+      const response = await fetch(url);
+
+      expect(response.status).toBe(200);
+      expect(response.headers.get('content-disposition')).toBe(
+        'attachment; filename="aula.mp4"',
+      );
+      expect((await response.arrayBuffer()).byteLength).toBe(bytes.length);
+    });
+  });
 });
