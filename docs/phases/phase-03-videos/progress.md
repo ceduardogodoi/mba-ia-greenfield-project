@@ -1,6 +1,6 @@
 # phase-03-videos — Progress
 
-**Status:** in_progress
+**Status:** completed
 **SIs:** 12/12 completed
 
 ### SI-03.1 — Infra: dependências, configuração e serviços de storage/fila no Compose
@@ -95,3 +95,27 @@
   - `next-frontend/openapi.json` was not synced (`scripts/sync-openapi.sh` + frontend type regeneration belong to a frontend phase; video UI is out of scope).
   - Testing guide (`references/external-systems.md`, `artifacts/services.md`, `SKILL.md` checklist row) now prescribes real MinIO and an isolated BullMQ prefix for tests (validation IC-1); `docs/diagrams/software-arch.mermaid` names the queue BullMQ (Redis) instead of TBD.
   - Every path, npm script and Compose service cited in the root and `nestjs-project` `CLAUDE.md` was checked to exist, and the documented verification commands were executed (`redis-cli ping` → PONG, MinIO health → 0, `storage-init` Exited (0), worker start log).
+
+## Final verification
+
+Commands run inside the `nestjs-api` container exactly as the Definition of Done states (no extra flags), with the full Compose stack up:
+
+| Check | Result |
+|-------|--------|
+| `npm test` | 36 suites, 249 tests passing — exit 0 in 8 s; re-run twice in a row green |
+| `npm run test:e2e` | 8 suites, 76 tests passing — exit 0 in 8 s (video scenarios processed by the Compose `video-worker`) |
+| `npx tsc --noEmit` | exit 0 |
+| `npm run lint` | exit 0 (0 errors; 23 pre-existing `no-unsafe-argument` warnings) |
+| `npm run build` | exit 0 — `dist/main.js`, `dist/worker.js`, mail templates copied; `npm run start:worker:prod` starts and connects to the queue |
+| `docker compose up -d` | `db`, `mailpit`, `redis`, `minio` healthy/running, `storage-init` Exited (0), `video-worker` running |
+
+- `npm test` now passes `--runInBand` in the script itself (as `nestjs-project/CLAUDE.md` already prescribed): run plainly, the parallel workers shared the single test database and failed with cross-suite contamination, including Phase 02 suites (`users`, `auth`) once the video suites were added.
+
+## Out-of-scope follow-ups
+
+- `ChannelsService` keeps a private copy of the unique-violation helper now shared in `src/common/database/pg-errors.ts`.
+- `openapi:export` runs without the Swagger CLI plugin, so Phase 02 DTOs export empty schemas (e.g. `RegisterDto`).
+- `next-frontend/openapi.json` (and its generated types) not synced with the new video endpoints — frontend phase.
+- Abandoned uploads: drafts whose multipart upload is never completed (or rows that failed to save after `CreateMultipartUpload`) keep incomplete parts in the bucket; a cleanup job / bucket lifecycle rule `AbortIncompleteMultipartUpload` is not part of this phase (TD-07 known limitation).
+- Integration specs write objects under `test/` keys in the dev bucket and never delete them (no delete operation in the storage contract).
+
