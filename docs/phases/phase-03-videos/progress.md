@@ -1,7 +1,7 @@
 # phase-03-videos — Progress
 
 **Status:** in_progress
-**SIs:** 5/12 completed
+**SIs:** 6/12 completed
 
 ### SI-03.1 — Infra: dependências, configuração e serviços de storage/fila no Compose
 - **Status:** completed
@@ -40,9 +40,11 @@
   - If saving the row fails after `CreateMultipartUpload`, the open multipart upload is not aborted (no abort operation in this phase's storage contract) — same known limitation as abandoned drafts (TD-07).
 
 ### SI-03.6 — Endpoints de partes do upload (assinatura sob demanda e listagem para retomada)
-- **Status:** pending
-- **Tests:** —
-- **Observations:** none
+- **Status:** completed
+- **Tests:** 17 passing (`videos.service.spec.ts` 15 — 8 new, `videos.service.integration-spec.ts` 2 — 1 new) + e2e `test/videos-upload-parts.e2e-spec.ts` 5 (from `nestjs-project/specs/videos-upload-parts.plan.md`)
+- **Observations:**
+  - Ownership is enforced by querying `{ id, channel_id }` of the caller's channel; a caller without a channel also gets `VIDEO_NOT_FOUND` (no existence leak, per Authorization Matrix).
+  - `ParseUUIDPipe` failures surface as `400 VALIDATION_ERROR` through the existing `ValidationExceptionFilter`.
 
 ### SI-03.7 — Endpoint POST /videos/{id}/upload/complete (conclusão do upload e enfileiramento)
 - **Status:** pending

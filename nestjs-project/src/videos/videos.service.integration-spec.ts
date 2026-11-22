@@ -84,4 +84,33 @@ describe('VideosService (integration — DB + MinIO)', () => {
       ).resolves.toEqual([]);
     });
   });
+
+  describe('signUploadParts / listUploadedParts', () => {
+    it('should store a part PUT to a signed URL and report it as uploaded', async () => {
+      const owner = await createOwner();
+      const { id } = await videos.initiateUpload(owner.userId, {
+        fileName: 'aula.mp4',
+        sizeBytes: 5 * 1024 * 1024 + 10,
+        contentType: 'video/mp4',
+      });
+      const body = Buffer.alloc(5 * 1024 * 1024, 3);
+
+      const { parts } = await videos.signUploadParts(owner.userId, id, [1]);
+      const response = await fetch(parts[0].url, {
+        method: 'PUT',
+        body: new Uint8Array(body),
+      });
+      expect(response.status).toBe(200);
+
+      const progress = await videos.listUploadedParts(owner.userId, id);
+      expect(progress.partCount).toBe(1);
+      expect(progress.uploadedParts).toEqual([
+        {
+          partNumber: 1,
+          sizeBytes: body.length,
+          etag: response.headers.get('etag'),
+        },
+      ]);
+    });
+  });
 });
