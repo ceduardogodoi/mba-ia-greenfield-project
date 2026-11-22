@@ -19,7 +19,7 @@ import {
   VideoNotDraftException,
   VideoNotFoundException,
 } from '../common/exceptions/domain.exception';
-import type { UploadedPart } from '../storage/storage.types';
+import type { PresignGetOptions, UploadedPart } from '../storage/storage.types';
 import { StorageService } from '../storage/storage.service';
 import { Video, VideoStatus } from './entities/video.entity';
 import { VideosService } from './videos.service';
@@ -53,6 +53,7 @@ describe('VideosService', () => {
     | 'presignUploadPart'
     | 'listParts'
     | 'completeMultipartUpload'
+    | 'presignGet'
   >;
 
   const channel = { id: 'channel-1' } as Channel;
@@ -94,6 +95,9 @@ describe('VideosService', () => {
       completeMultipartUpload: jest
         .fn<Promise<void>, [string, string, UploadedPart[]]>()
         .mockResolvedValue(undefined),
+      presignGet: jest
+        .fn<Promise<string>, [string, PresignGetOptions]>()
+        .mockResolvedValue('http://minio:9000/signed-get'),
     };
 
     const module = await Test.createTestingModule({
@@ -384,6 +388,53 @@ describe('VideosService', () => {
           status: VideoStatus.FAILED,
           failure_reason: 'Failed to enqueue processing job: redis down',
         },
+      );
+    });
+  });
+
+  describe('getOwnedVideo', () => {
+    const timestamps = {
+      created_at: new Date('2026-11-22T10:00:00Z'),
+      updated_at: new Date('2026-11-22T10:05:00Z'),
+    };
+
+    it('should return a null thumbnailUrl while there is no thumbnail', async () => {
+      videoRepository.findOne.mockResolvedValue(
+        draftVideo({ thumbnail_key: null, ...timestamps }),
+      );
+
+      const result = await service.getOwnedVideo('user-1', 'video-1');
+
+      expect(result.thumbnailUrl).toBeNull();
+      expect(storageService.presignGet).not.toHaveBeenCalled();
+      expect(result.createdAt).toBe('2026-11-22T10:00:00.000Z');
+    });
+
+    it('should sign a public thumbnail URL valid for one hour once the thumbnail exists', async () => {
+      videoRepository.findOne.mockResolvedValue(
+        draftVideo({
+          status: VideoStatus.READY,
+          thumbnail_key: 'videos/video-1/thumbnail.jpg',
+          duration_seconds: 2,
+          ...timestamps,
+        }),
+      );
+
+      const result = await service.getOwnedVideo('user-1', 'video-1');
+
+      expect(storageService.presignGet).toHaveBeenCalledWith(
+        'videos/video-1/thumbnail.jpg',
+        { audience: 'public', expiresInSeconds: 3600 },
+      );
+      expect(result.thumbnailUrl).toBe('http://minio:9000/signed-get');
+      expect(result.durationSeconds).toBe(2);
+    });
+
+    it('should throw VIDEO_NOT_FOUND for a video of another channel', async () => {
+      videoRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.getOwnedVideo('user-1', 'video-1')).rejects.toThrow(
+        VideoNotFoundException,
       );
     });
   });

@@ -1,7 +1,7 @@
 # phase-03-videos — Progress
 
 **Status:** in_progress
-**SIs:** 9/12 completed
+**SIs:** 10/12 completed
 
 ### SI-03.1 — Infra: dependências, configuração e serviços de storage/fila no Compose
 - **Status:** completed
@@ -74,9 +74,11 @@
   - The worker is a missing-video/non-processing no-op, so stale jobs from earlier e2e runs are drained harmlessly.
 
 ### SI-03.10 — Endpoint GET /videos/{id} (status, metadados e thumbnail para o dono)
-- **Status:** pending
-- **Tests:** —
-- **Observations:** none
+- **Status:** completed
+- **Tests:** `videos.service.spec.ts` 24 passing (3 new) + e2e `test/videos-get.e2e-spec.ts` 4 (from `nestjs-project/specs/videos-get.plan.md`)
+- **Observations:**
+  - The `ready`/`failed` e2e scenarios run the full pipeline black-box: API → MinIO → Redis → Compose `video-worker` → DB (TD-14 option C); both terminal states were reached in under 1 s with the 2 s fixture.
+  - `VideoResponseDto` documents the nested `metadata` shape for the exported OpenAPI contract; TTL of presigned playback/thumbnail URLs is `PLAYBACK_URL_TTL_SECONDS` (3600) in `upload-policy.ts`.
 
 ### SI-03.11 — Endpoints GET /videos/{slug}/stream e GET /videos/{slug}/download
 - **Status:** pending

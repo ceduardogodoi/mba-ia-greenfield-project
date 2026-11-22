@@ -23,12 +23,14 @@ import {
 import { originalKey } from '../storage/storage-keys';
 import { StorageService } from '../storage/storage.service';
 import { InitiateUploadDto } from './dto/initiate-upload.dto';
+import { VideoResponseDto } from './dto/video-response.dto';
 import { Video, VideoStatus } from './entities/video.entity';
 import {
   defaultTitle,
   PART_SIZE_BYTES,
   PART_URL_TTL_SECONDS,
   partCount,
+  PLAYBACK_URL_TTL_SECONDS,
 } from './upload-policy';
 import { generateVideoSlug } from './video-slug.util';
 import type {
@@ -202,6 +204,36 @@ export class VideosService {
     }
 
     return { id: video.id, status: VideoStatus.PROCESSING };
+  }
+
+  /** Owner view of the lifecycle and processing result (validation AMB-3). */
+  async getOwnedVideo(
+    userId: string,
+    videoId: string,
+  ): Promise<VideoResponseDto> {
+    const video = await this.findOwnedVideo(userId, videoId);
+    const thumbnailUrl = video.thumbnail_key
+      ? await this.storageService.presignGet(video.thumbnail_key, {
+          audience: 'public',
+          expiresInSeconds: PLAYBACK_URL_TTL_SECONDS,
+        })
+      : null;
+
+    return {
+      id: video.id,
+      slug: video.slug,
+      title: video.title,
+      status: video.status,
+      originalFilename: video.original_filename,
+      contentType: video.content_type,
+      sizeBytes: video.size_bytes,
+      durationSeconds: video.duration_seconds,
+      metadata: video.metadata,
+      failureReason: video.failure_reason,
+      thumbnailUrl,
+      createdAt: video.created_at.toISOString(),
+      updatedAt: video.updated_at.toISOString(),
+    };
   }
 
   /**

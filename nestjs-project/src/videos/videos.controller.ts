@@ -20,6 +20,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { ApiErrorEnvelope } from '../common/openapi/api-error-envelope.dto';
 import { InitiateUploadDto } from './dto/initiate-upload.dto';
 import { SignUploadPartsDto } from './dto/sign-upload-parts.dto';
+import { VideoResponseDto } from './dto/video-response.dto';
 import { VideosService } from './videos.service';
 import type {
   CompletedUpload,
@@ -234,5 +235,34 @@ export class VideosController {
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<CompletedUpload> {
     return this.videosService.completeUpload(user.sub, id);
+  }
+
+  @Get(':id')
+  @ApiOperation({
+    summary: 'Get a video owned by the caller',
+    description:
+      'Returns the lifecycle status (draft → processing → ready | failed), the processing result (duration, metadata, failure reason) and a short-lived thumbnail URL.',
+  })
+  @ApiResponse({ status: 200, description: 'Video', type: VideoResponseDto })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid video id',
+    schema: errorSchema,
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Missing or invalid access token',
+    schema: errorSchema,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Video not found (VIDEO_NOT_FOUND)',
+    schema: errorSchema,
+  })
+  async getVideo(
+    @CurrentUser() user: JwtPayload,
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<VideoResponseDto> {
+    return this.videosService.getOwnedVideo(user.sub, id);
   }
 }
