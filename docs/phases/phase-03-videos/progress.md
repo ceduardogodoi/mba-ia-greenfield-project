@@ -1,7 +1,7 @@
 # phase-03-videos — Progress
 
 **Status:** in_progress
-**SIs:** 4/12 completed
+**SIs:** 5/12 completed
 
 ### SI-03.1 — Infra: dependências, configuração e serviços de storage/fila no Compose
 - **Status:** completed
@@ -32,9 +32,12 @@
   - `S3_PUBLIC_ENDPOINT` is overridden to `http://minio:9000` inside the spec so presigned URLs are reachable from the container (TD-11 Revision 2026-11-22).
 
 ### SI-03.5 — Endpoint POST /videos (pré-cadastro como rascunho + início do upload)
-- **Status:** pending
-- **Tests:** —
-- **Observations:** none
+- **Status:** completed
+- **Tests:** 25 passing in `src/videos` (`upload-policy.spec.ts` 10, `videos.service.spec.ts` 7, `videos.service.integration-spec.ts` 1, `videos.module.spec.ts` 1, entity 6) + e2e `test/videos-create.e2e-spec.ts` 5 (from `nestjs-project/specs/videos-create.plan.md`)
+- **Observations:**
+  - Shared e2e helpers in `test/utils/videos-e2e.ts` (app bootstrap mirroring `main.ts`, confirmed user + channel + login, presigned upload helpers, status polling); the bootstrap sets `S3_PUBLIC_ENDPOINT=http://minio:9000` per TD-11 Revision 2026-11-22.
+  - Unique-violation detection moved to `src/common/database/pg-errors.ts` for the slug retry; `ChannelsService` keeps its own private copy (consolidating it is out of scope — follow-up).
+  - If saving the row fails after `CreateMultipartUpload`, the open multipart upload is not aborted (no abort operation in this phase's storage contract) — same known limitation as abandoned drafts (TD-07).
 
 ### SI-03.6 — Endpoints de partes do upload (assinatura sob demanda e listagem para retomada)
 - **Status:** pending
