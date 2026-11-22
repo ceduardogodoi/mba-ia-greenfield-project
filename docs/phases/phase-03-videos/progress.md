@@ -1,7 +1,7 @@
 # phase-03-videos — Progress
 
 **Status:** in_progress
-**SIs:** 7/12 completed
+**SIs:** 8/12 completed
 
 ### SI-03.1 — Infra: dependências, configuração e serviços de storage/fila no Compose
 - **Status:** completed
@@ -57,9 +57,11 @@
   - E2E completions enqueue real jobs in the default queue; until the worker exists (SI-03.9) they stay pending, and the worker treats missing videos as no-ops.
 
 ### SI-03.8 — Serviço de mídia com FFmpeg (metadados e thumbnail)
-- **Status:** pending
-- **Tests:** —
-- **Observations:** none
+- **Status:** completed
+- **Tests:** 9 passing (`media-probe.parser.spec.ts` 5, `media.service.integration-spec.ts` 4 with real FFmpeg)
+- **Observations:**
+  - Fixtures generated with the container's FFmpeg: `test/fixtures/sample.mp4` (2 s, 320x240, H.264 + AAC, 32 KB) and `test/fixtures/not-a-video.mp4` (4 KiB of random bytes). The audio-only case for `NoVideoStreamError` is generated on the fly in a temp dir instead of being committed.
+  - fps is taken from `avg_frame_rate` (falling back to `r_frame_rate`); `0/0` yields `null`.
 
 ### SI-03.9 — Worker de vídeo: processor, entrypoint standalone e serviço `video-worker`
 - **Status:** pending
