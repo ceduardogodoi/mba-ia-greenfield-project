@@ -1,7 +1,7 @@
 # phase-03-videos — Progress
 
 **Status:** in_progress
-**SIs:** 11/12 completed
+**SIs:** 12/12 completed
 
 ### SI-03.1 — Infra: dependências, configuração e serviços de storage/fila no Compose
 - **Status:** completed
@@ -88,6 +88,10 @@
   - The download `Content-Disposition` file name is reduced to printable ASCII without quotes/backslashes (`aula "final" ç.mp4` → `aula _final_ _.mp4`) to keep the header well-formed; an RFC 5987 `filename*` was not added because the contract fixes the header to `attachment; filename="..."`.
 
 ### SI-03.12 — Documentação: OpenAPI, testing guide, diagrama e CLAUDE.md da fase de vídeos
-- **Status:** pending
-- **Tests:** —
-- **Observations:** none
+- **Status:** completed
+- **Tests:** `src/openapi-export.integration-spec.ts` 24 passing (15 new: 7 video operations with bearer auth + error envelope, `InitiateUploadDto` body schema)
+- **Observations:**
+  - `openapi:export` runs through ts-node without the Swagger CLI plugin, so DTOs without explicit `@ApiProperty` export empty schemas (pre-existing: e.g. `RegisterDto` has `properties: {}`). The video request DTOs got explicit `@ApiProperty` so their contract is complete; fixing the Phase 02 DTOs is out of scope (follow-up).
+  - `next-frontend/openapi.json` was not synced (`scripts/sync-openapi.sh` + frontend type regeneration belong to a frontend phase; video UI is out of scope).
+  - Testing guide (`references/external-systems.md`, `artifacts/services.md`, `SKILL.md` checklist row) now prescribes real MinIO and an isolated BullMQ prefix for tests (validation IC-1); `docs/diagrams/software-arch.mermaid` names the queue BullMQ (Redis) instead of TBD.
+  - Every path, npm script and Compose service cited in the root and `nestjs-project` `CLAUDE.md` was checked to exist, and the documented verification commands were executed (`redis-cli ping` → PONG, MinIO health → 0, `storage-init` Exited (0), worker start log).

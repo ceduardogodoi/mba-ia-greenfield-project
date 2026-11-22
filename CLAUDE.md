@@ -18,13 +18,22 @@ This is a monorepo with two main areas:
 
 See `docs/diagrams/software-arch.mermaid` for the full diagram. Key containers:
 
-- **Frontend** (Next.js) → calls API via REST, streams from Object Storage
-- **API** (Nest.js) → business rules, auth, reads/writes DB, uploads to storage, publishes jobs to queue, sends emails
-- **Video Worker** (FFmpeg) → consumes jobs from queue, processes videos, updates DB and storage
+- **Frontend** (Next.js) → calls API via REST, uploads video parts to and streams from Object Storage through presigned URLs
+- **API** (Nest.js) → business rules, auth, reads/writes DB, presigns storage uploads/reads, publishes jobs to queue, sends emails
+- **Video Worker** (Nest.js standalone context + FFmpeg) → consumes jobs from queue, extracts duration/metadata and thumbnail, updates DB and storage
 - **Database** (PostgreSQL) → users, channels, videos, comments, likes
 - **Object Storage** (S3/MinIO) → video files and thumbnails
-- **Message Queue** (TBD) → video processing job queue
+- **Message Queue** (BullMQ on Redis) → video processing job queue
 - **Email Service** (SMTP) → account confirmation and password recovery
+
+## Videos (Phase 03)
+
+Upload and processing of videos live in `nestjs-project/` — see `nestjs-project/CLAUDE.md` → "Videos" for modules, endpoints, Compose services and test conventions. Decisions: `docs/decisions/technical-decisions-phase-03-videos.md`; plan and progress: `docs/phases/phase-03-videos/`.
+
+- **Upload (up to 10 GiB):** the API pre-registers the video as `draft` and opens an S3 multipart upload; the client `PUT`s parts **directly to the object storage** through presigned URLs — video bytes never pass through the API.
+- **Processing:** completing the upload moves the video to `processing` and enqueues `process-video` on the BullMQ queue `video-processing`; the `video-worker` service probes duration/metadata with `ffprobe`, generates a JPEG thumbnail with `ffmpeg`, and sets `ready` (or `failed` after retries).
+- **Delivery:** each video has a unique 11-char `slug`; `GET /videos/{slug}/stream` and `/download` redirect (302) to presigned storage URLs (Range → 206 for streaming). Owner-only until publication/visibility (Phase 04) and anonymous viewing (Phase 05).
+- **Storage locally:** MinIO (S3-compatible) from the community image `pgsty/minio` — official MinIO images are no longer published; production targets AWS S3 with the same code.
 
 ## Docker Networking
 
