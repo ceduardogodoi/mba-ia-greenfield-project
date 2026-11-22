@@ -1,7 +1,7 @@
 # phase-03-videos — Progress
 
 **Status:** in_progress
-**SIs:** 1/12 completed
+**SIs:** 2/12 completed
 
 ### SI-03.1 — Infra: dependências, configuração e serviços de storage/fila no Compose
 - **Status:** completed
@@ -11,9 +11,10 @@
   - MinIO healthcheck probes `http://localhost:9000/minio/health/live` from inside its own container (self-probe, not inter-service traffic).
 
 ### SI-03.2 — Busca do canal do usuário em `ChannelsService`
-- **Status:** pending
-- **Tests:** —
-- **Observations:** none
+- **Status:** completed
+- **Tests:** 7 passing (`channels.service.integration-spec.ts`, `channels.module.spec.ts`; 3 new)
+- **Observations:**
+  - `ChannelsModule` already registered `TypeOrmModule.forFeature([Channel])` and exported `ChannelsService`; only the method was added. It reads through `DataSource.getRepository(Channel)` to keep the existing `ChannelsService(dataSource)` constructor used by its tests.
 
 ### SI-03.3 — Entidade `Video` e migration `CreateVideos`
 - **Status:** pending
