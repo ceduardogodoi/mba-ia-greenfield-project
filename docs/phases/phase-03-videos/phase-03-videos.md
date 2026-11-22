@@ -139,7 +139,7 @@ Entregar o armazenamento de vídeos e thumbnails em object storage S3-compatíve
 ### SI-03.5 — Endpoint POST /videos (pré-cadastro como rascunho + início do upload)
 
 **Route:** POST /videos
-**Test Specs:** _pending /plan-test-specs_
+**Test Specs:** see `nestjs-project/specs/videos-create.plan.md`
 **Authorization:** Authenticated (cria no canal do próprio usuário)
 
 **Description:** Ao iniciar o upload, pré-cadastra o vídeo como `draft` com URL única e abre o multipart upload no storage, devolvendo a política de partes — sem nenhum byte de vídeo passando pela API.
@@ -177,7 +177,7 @@ Entregar o armazenamento de vídeos e thumbnails em object storage S3-compatíve
 ### SI-03.6 — Endpoints de partes do upload (assinatura sob demanda e listagem para retomada)
 
 **Route:** POST /videos/{id}/upload/parts, GET /videos/{id}/upload/parts
-**Test Specs:** _pending /plan-test-specs_
+**Test Specs:** see `nestjs-project/specs/videos-upload-parts.plan.md`
 **Authorization:** Owner
 
 **Description:** Permite ao dono obter URLs pré-assinadas de curta duração para enviar cada parte direto ao storage e listar as partes já armazenadas, viabilizando uploads paralelos e a retomada após falha de conexão.
@@ -212,7 +212,7 @@ Entregar o armazenamento de vídeos e thumbnails em object storage S3-compatíve
 ### SI-03.7 — Endpoint POST /videos/{id}/upload/complete (conclusão do upload e enfileiramento)
 
 **Route:** POST /videos/{id}/upload/complete
-**Test Specs:** _pending /plan-test-specs_
+**Test Specs:** see `nestjs-project/specs/videos-upload-complete.plan.md`
 **Authorization:** Owner
 
 **Description:** Conclui o multipart upload no servidor, valida que o arquivo armazenado bate com o declarado, move o vídeo para `processing` e publica o job de processamento na fila — o gatilho do processamento automático.
@@ -310,7 +310,7 @@ Entregar o armazenamento de vídeos e thumbnails em object storage S3-compatíve
 ### SI-03.10 — Endpoint GET /videos/{id} (status, metadados e thumbnail para o dono)
 
 **Route:** GET /videos/{id}
-**Test Specs:** _pending /plan-test-specs_
+**Test Specs:** see `nestjs-project/specs/videos-get.plan.md`
 **Authorization:** Owner
 
 **Description:** Expõe ao dono o estado do ciclo de vida e o resultado do processamento do vídeo, incluindo uma URL temporária do thumbnail gerado (validation AMB-3).
@@ -340,7 +340,7 @@ Entregar o armazenamento de vídeos e thumbnails em object storage S3-compatíve
 ### SI-03.11 — Endpoints GET /videos/{slug}/stream e GET /videos/{slug}/download
 
 **Route:** GET /videos/{slug}/stream, GET /videos/{slug}/download
-**Test Specs:** _pending /plan-test-specs_
+**Test Specs:** see `nestjs-project/specs/videos-playback.plan.md`
 **Authorization:** Owner (`ready` only)
 
 **Description:** Entrega o vídeo pela URL única: reprodução progressiva sem download completo (o storage atende `Range` com `206`) e download do arquivo original como anexo, sem tráfego de bytes pela API.
