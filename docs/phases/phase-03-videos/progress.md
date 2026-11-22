@@ -1,7 +1,7 @@
 # phase-03-videos — Progress
 
 **Status:** in_progress
-**SIs:** 3/12 completed
+**SIs:** 4/12 completed
 
 ### SI-03.1 — Infra: dependências, configuração e serviços de storage/fila no Compose
 - **Status:** completed
@@ -25,9 +25,11 @@
   - Migrations spec now applies 3 migrations and its revert assertion targets `CreateVideos` (table + `videos_status_enum`).
 
 ### SI-03.4 — Serviço de object storage S3 (`StorageModule`)
-- **Status:** pending
-- **Tests:** —
-- **Observations:** none
+- **Status:** completed
+- **Tests:** 8 passing (`storage.service.integration-spec.ts` 5 against real MinIO, `storage-keys.spec.ts` 2, `storage.module.spec.ts` 1)
+- **Observations:**
+  - Integration objects are written under a `test/` key prefix in the dev bucket; `StorageService` has no delete operation in this phase's contract, so they are not removed (no effect on `videos/` keys).
+  - `S3_PUBLIC_ENDPOINT` is overridden to `http://minio:9000` inside the spec so presigned URLs are reachable from the container (TD-11 Revision 2026-11-22).
 
 ### SI-03.5 — Endpoint POST /videos (pré-cadastro como rascunho + início do upload)
 - **Status:** pending
