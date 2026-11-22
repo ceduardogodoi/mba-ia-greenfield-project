@@ -1,7 +1,7 @@
 # phase-03-videos — Progress
 
 **Status:** in_progress
-**SIs:** 8/12 completed
+**SIs:** 9/12 completed
 
 ### SI-03.1 — Infra: dependências, configuração e serviços de storage/fila no Compose
 - **Status:** completed
@@ -64,9 +64,14 @@
   - fps is taken from `avg_frame_rate` (falling back to `r_frame_rate`); `0/0` yields `null`.
 
 ### SI-03.9 — Worker de vídeo: processor, entrypoint standalone e serviço `video-worker`
-- **Status:** pending
-- **Tests:** —
-- **Observations:** none
+- **Status:** completed
+- **Tests:** 13 passing in `src/video-processing` (`video-processing.processor.spec.ts` 9, `video-processing.processor.integration-spec.ts` 3 in-process with real DB + MinIO + FFmpeg, `worker.module.spec.ts` 1); full suite 222 + e2e 67 passing with the Compose `video-worker` consuming the e2e jobs
+- **Observations:**
+  - `MediaProcessError` is unrecoverable only when FFmpeg failed to decode the input; connection/HTTP errors against the storage (stderr pattern) are treated as transient and retried, so the "falha transitória" acceptance criterion holds.
+  - FFmpeg stderr echoes the presigned input URL (with signature); `MediaProcessError` redacts URLs to `<input-url>` so `failure_reason` (exposed by `GET /videos/{id}`) never stores credentials.
+  - `WorkerModule` registers `Channel` and `User` via `forFeature` only for relation metadata (Video → Channel → User); without them TypeORM fails to build metadata in the worker context (caught when the Compose service first started).
+  - TypeORM and BullMQ root options were extracted to `src/database/typeorm-options.factory.ts` and `src/queue/bull-root-options.factory.ts`, shared by `AppModule` and `WorkerModule` (inherited convention: DB parameters from a single `databaseConfig` source, never duplicated).
+  - The worker is a missing-video/non-processing no-op, so stale jobs from earlier e2e runs are drained harmlessly.
 
 ### SI-03.10 — Endpoint GET /videos/{id} (status, metadados e thumbnail para o dono)
 - **Status:** pending
